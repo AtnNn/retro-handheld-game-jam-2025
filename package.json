@@ -1,0 +1,7 @@
+{
+  "name": "retro-handheld-game-jam-2025",
+  "type": "module",
+  "devDependencies": {
+    "rungame": "^0.8.0"
+  }
+}
