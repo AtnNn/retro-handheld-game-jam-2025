@@ -1,4 +1,4 @@
-import { Line, Vector3d, Point3d, Transform, Plane } from 'open3d';
+const { Line, Vector3d, Point3d, Transform } = Open3d;
 
 const window = globalThis;
 
@@ -12,7 +12,8 @@ let audioContext;
 
 const cam = {
     pos: { x: 4, y: 4, z: 7 },
-    angle: -Math.PI/5
+    angle: -Math.PI/5,
+    lower: Math.PI/8
 };
 
 const maps = [{ heights: [
@@ -234,7 +235,12 @@ function gameLoop() {
 }
 
 function update(millis) {
-  const [p1] = getInput();
+    const [p1] = getInput();
+    const adjust_angle = (p1.DPAD_RIGHT.pressed ? 1 : 0) + (p1.DPAD_LEFT.pressed ? -1 : 0);
+    cam.angle += adjust_angle * millis / 1000 * Math.PI;
+    const adjust_lower = (p1.DPAD_UP.pressed ? 1 : 0) + (p1.DPAD_DOWN.pressed ? -1 : 0);
+    cam.lower += adjust_lower * millis / 1000 * Math.PI;
+    console.log(JSON.stringify(cam))
 }
 
 const th = Math.sqrt(3)/2;
@@ -243,17 +249,18 @@ function tpoints({x, y}) {
     const dir = (x + y) % 2;
     const a = x / 2;
     const b = (y + 1) * th;
+    const z = theight({x, y}); // ...
     if (dir === 0) {
         return [
-          {x: a, y: b},
-            {x: a + 1, y:b},
-            {x: a + .5, y:b - th}
+            {x: a, y: b, z},
+            {x: a + 1, y:b, z},
+            {x: a + .5, y:b - th, z}
                 ]
     } else {
         return [
-          {x: a, y: b - th},
-            {x: a + 1, y: b - th},
-            {x: a + .5, y: b}
+            {x: a, y: b - th, z},
+            {x: a + 1, y: b - th, z},
+            {x: a + .5, y: b, z}
                 ]
     }
 }
@@ -261,17 +268,29 @@ function tpoints({x, y}) {
 function tcolor({x, y}) {
     const type = map.type[x][y];
     switch(type) {
-    case " ": return 'white';
-    case "x": return 'black';
-    case "r": return 'rgb(200,200,220)';
+    case " ": return 'pink';
+    case "x": return 'blue';
+    case "r": return 'yellow';
     }
-    console.log('error bad type', type)
+    console.error('bad type', type)
 }
 
 function theight({x, y}) {
     return map.heights[x][y];
 }
 
+function tocam(m, {x, y, z}) {
+    const {X, Y, Z} = (new Point3d(x, y, z).Transform(m))
+    const r = Math.sqrt(Y * Y + Z * Z);
+    if(Z < 0) {
+        return undefined;
+    }
+    const k = height / 2 * r / X;
+    return {
+        x: k * Y + width / 2,
+        y: k * Z + height / 2
+    }
+}
 
 function draw() {
     ctx.fillStyle = 'rgb(30,30,30)';
@@ -294,8 +313,23 @@ function draw() {
             // ctx.stroke();
 
             const m = Transform.CombineTransforms([
-                Transform.Translation(-cam.pos.x, -cam.pos.y, -cam.pos.z)
-            ])
+                Transform.Translation(new Vector3d(-cam.pos.x, -cam.pos.y, -cam.pos.z)),
+                Transform.Rotation(-cam.angle, new Vector3d(-cam.pos.x, -cam.pos.y, -cam.pos.z), new Point3d(0,0,0)),
+                Transform.Rotation(-cam.lower, new Vector3d(0, 1, 0), new Point3d(0,0,0))
+            ]);
+            const cs = ps.map((p) => tocam(m, p))
+            if (!cs[0] || !cs[1] || !cs[2]) {
+                continue;
+            }
+            ctx.fillStyle = c;
+            ctx.strokeStyle = c;
+            ctx.beginPath();
+            ctx.moveTo(cs[0].x, cs[0].y);
+            ctx.lineTo(cs[1].x, cs[1].y);
+            ctx.lineTo(cs[2].x, cs[2].y);
+            ctx.lineTo(cs[0].x, cs[0].y);
+            ctx.fill();
+            ctx.stroke();
         }
     }
 }
