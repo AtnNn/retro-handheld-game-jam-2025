@@ -1,26 +1,25 @@
-const { Line, Vector3d, Point3d, Transform } = Open3d;
 
-const window = globalThis;
+const { Line, Vector3d, Point3d, Transform } = "Open3d" in globalThis ? Open3d : module.exports;
 
-const canvas = document.getElementById('game-canvas');
-const ctx = canvas.getContext('2d');
+const canva = document.getElementById('game-canvas');
+let cx = canva.getContext('2d');
 
-const { width, height } = canvas;
+const { width, height } = canva;
 let lastTime;
 
 let audioContext;
 
 const cam = {
-    pos: { x: 4, y: 4, z: 7 },
+    pos: { x: 4, y: 4, z: 2 },
     angle: -Math.PI/5,
     lower: Math.PI/8
 };
 
 const maps = [{ heights: [
-    [5,5,5,5,5,5,5,5,5,5,4,5,6,7,8,9],
-    [6,5,6,5,5,5,5,5,5,5,5,5,5,6,7,8],
-    [5,5,5,6,5,5,5,5,5,5,5,5,5,5,6,7],
-    [5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,6],
+    [1,1,1,1,0,1,5,5,5,5,4,5,6,7,8,9],
+    [6,5,2,2,1,2,5,5,5,5,5,5,5,6,7,8],
+    [5,5,5,2,5,5,5,5,5,5,5,5,5,5,6,7],
+    [5,5,5,1,5,5,5,5,5,5,5,5,5,5,5,6],
     [5,5,5,5,5,5,5,5,5,5,5,4,5,5,5,5],
     [5,5,6,5,5,5,5,5,5,5,5,4,5,5,5,5],
     [5,5,5,5,5,5,5,5,5,5,5,4,5,5,5,5],
@@ -276,61 +275,56 @@ function tcolor({x, y}) {
 }
 
 function theight({x, y}) {
-    return map.heights[x][y];
+    return map.heights[x][y] / 5;
 }
 
 function tocam(m, {x, y, z}) {
     const {X, Y, Z} = (new Point3d(x, y, z).Transform(m))
     const r = Math.sqrt(Y * Y + Z * Z);
-    if(Z < 0) {
+    if(X < 0) {
         return undefined;
     }
-    const k = height / 2 * r / X;
+    // const d = Math.sqrt(r * r + X * X);
+    const k = height / 2 / X;
     return {
         x: k * Y + width / 2,
-        y: k * Z + height / 2
+        y: height - (k * Z + height / 2)
     }
 }
 
 function draw() {
-    ctx.fillStyle = 'rgb(30,30,30)';
-    ctx.fillRect(0, 0, width, height);
+    cx.fillStyle = 'rgb(30,30,30)';
+    cx.fillRect(0, 0, width, height);
+    const m = Transform.CombineTransforms([
+        Transform.Translation(new Vector3d(-cam.pos.x, -cam.pos.y, -cam.pos.z)),
+        Transform.Rotation(-cam.angle, new Vector3d(0, 0, 1), new Point3d(0,0,0)),
+        Transform.Rotation(-cam.lower, new Vector3d(0, 1, 0), new Point3d(0,0,0))
+    ]);
+    const pss = [];
     for(let x = 0; x < mw; x++) {
         for(let y = 0; y < mh; y++) {
             const t = {x, y};
             const ps = tpoints(t);
             const c = tcolor(t);
-            const s = width / mw;
 
-            // ctx.fillStyle = c;
-            // ctx.strokeStyle = c;
-            // ctx.beginPath();
-            // ctx.moveTo(ps[0].x * s, ps[0].y * s);
-            // ctx.lineTo(ps[1].x * s, ps[1].y * s);
-            // ctx.lineTo(ps[2].x * s, ps[2].y * s);
-            // ctx.lineTo(ps[0].x * s, ps[0].y * s);
-            // ctx.fill();
-            // ctx.stroke();
-
-            const m = Transform.CombineTransforms([
-                Transform.Translation(new Vector3d(-cam.pos.x, -cam.pos.y, -cam.pos.z)),
-                Transform.Rotation(-cam.angle, new Vector3d(-cam.pos.x, -cam.pos.y, -cam.pos.z), new Point3d(0,0,0)),
-                Transform.Rotation(-cam.lower, new Vector3d(0, 1, 0), new Point3d(0,0,0))
-            ]);
-            const cs = ps.map((p) => tocam(m, p))
-            if (!cs[0] || !cs[1] || !cs[2]) {
-                continue;
-            }
-            ctx.fillStyle = c;
-            ctx.strokeStyle = c;
-            ctx.beginPath();
-            ctx.moveTo(cs[0].x, cs[0].y);
-            ctx.lineTo(cs[1].x, cs[1].y);
-            ctx.lineTo(cs[2].x, cs[2].y);
-            ctx.lineTo(cs[0].x, cs[0].y);
-            ctx.fill();
-            ctx.stroke();
+            pss.push({t, ps, c})
         }
+    }
+    for (let item of pss) {
+        const { t, ps, c } = item
+        const cs = ps.map((p) => tocam(m, p))
+        if (!cs[0] || !cs[1] || !cs[2]) {
+            continue;
+        }
+        cx.fillStyle = c;
+        cx.strokeStyle = c;
+        cx.beginPath();
+        cx.moveTo(cs[0].x, cs[0].y);
+        cx.lineTo(cs[1].x, cs[1].y);
+        cx.lineTo(cs[2].x, cs[2].y);
+        cx.lineTo(cs[0].x, cs[0].y);
+        cx.fill();
+        cx.stroke();
     }
 }
 
