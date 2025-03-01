@@ -1,4 +1,3 @@
-
 const { Line, Vector3d, Point3d, Transform } = "Open3d" in globalThis ? Open3d : module.exports;
 
 const canva = document.getElementById('game-canvas');
@@ -10,12 +9,28 @@ let lastTime;
 let audioContext;
 
 const cam = {
-    pos: { x: 4, y: 4, z: 2 },
+    pos: { x: 1, y: 1, z: 1 },
     angle: -Math.PI/5,
     lower: Math.PI/8
 };
 
-const maps = [{ heights: [
+let speed = 0;
+
+const maps = [
+    // {
+//     heights: [[0,0,0,0], [1,1,1,1], [2,2,2,2], [3,3,3,3]],
+//         type: ["abc", "def"]
+// },
+
+    { heights: [
+        [0,1,1,1,1,0,1,5,5,5,5,4,5,6,7,8,9],
+        [0,1,1,1,1,0,1,5,5,5,5,4,5,6,7,8,9],
+        [0,1,1,1,1,0,1,5,5,5,5,4,5,6,7,8,9],
+        [0,1,1,1,1,0,1,5,5,5,5,4,5,6,7,8,9],
+        [0,1,1,1,1,0,1,5,5,5,5,4,5,6,7,8,9],
+        [0,1,1,1,1,0,1,5,5,5,5,4,5,6,7,8,9],
+        [0,1,1,1,1,0,1,5,5,5,5,4,5,6,7,8,9],
+        [0,1,1,1,1,0,1,5,5,5,5,4,5,6,7,8,9],
     [0,1,1,1,1,0,1,5,5,5,5,4,5,6,7,8,9],
     [5,6,5,2,2,1,2,5,5,5,5,5,5,5,6,7,8],
     [5,5,5,5,2,5,5,5,5,5,5,5,5,5,5,6,7],
@@ -47,10 +62,13 @@ const maps = [{ heights: [
 }
 ];
 let map = maps[0];
-let mw = map.type.length;
-let mh = map.type[0].length;
+// Fixing map dimensions to match the actual data
+let mh = map.type.length;
+let mw = map.type[0].length;
 
- async function loadSound(url) {
+console.log({mh, mw})
+
+async function loadSound(url) {
   if (!audioContext) {
     audioContext = new AudioContext();
   }
@@ -60,7 +78,7 @@ let mh = map.type[0].length;
   return audioBuffer;
 }
 
- function playSound(audioBuffer, loop = false) {
+function playSound(audioBuffer, loop = false) {
   if (!audioBuffer) {
     return;
   }
@@ -82,7 +100,7 @@ let mh = map.type[0].length;
 }
 
 // loads image from a url as a promise
- function loadImage(src) {
+function loadImage(src) {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => resolve(img);
@@ -91,7 +109,7 @@ let mh = map.type[0].length;
   });
 }
 
- function createResourceLoader() {
+function createResourceLoader() {
   return {
     imgCount: 0,
     soundCount: 0,
@@ -163,7 +181,7 @@ window.addEventListener('keyup', (e) => {
 // normalizes input from a gamepad or keyboard
 // if there's a gamepad, player 1 is the gamead and player 2 is the keyboard
 // if there's no gamepad, player 1 is the keyboard
- function getInput() {
+function getInput() {
   const gamepads = navigator.getGamepads();
   const players = [];
   gamepads.forEach((gp) => {
@@ -240,28 +258,39 @@ function update(millis) {
     cam.angle += adjust_angle * millis / 1000 * Math.PI;
     const adjust_lower = (p1.DPAD_UP.pressed ? 1 : 0) + (p1.DPAD_DOWN.pressed ? -1 : 0);
     cam.lower += adjust_lower * millis / 1000 * Math.PI;
-    console.log(JSON.stringify(cam))
+    if (p1.BUTTON_EAST.pressed ) {
+        const advance = millis/200;
+        const m = Transform.CombineTransforms([
+            Transform.Translation(new Vector3d(-cam.pos.x, -cam.pos.y, -cam.pos.z)),
+            Transform.Rotation(-cam.angle, new Vector3d(0, 0, 1), new Point3d(0,0,0)),
+            Transform.Rotation(-cam.lower, new Vector3d(0, 1, 0), new Point3d(0,0,0))
+        ]);
+        const {X, Y, Z} = (new Vector3d(advance, 0, 0)).Transform(m.TryGetInverse());
+        cam.pos.x += X;
+        cam.pos.y += Y;
+        cam.pos.z += Z;
+    }
 }
 
 const th = Math.sqrt(3)/2;
 
 function tpoints({x, y}) {
     const dir = (x + y) % 2;
-    const a = x / 2;
-    const b = (y + 1) * th;
+    const a = y / 2;
+    const b = (x + 1) * th;
     const [z1, z2, z3] = theights({x, y});
     if (dir === 0) {
         return [
             {x: a, y: b, z: z1},
-            {x: a + 1, y:b, z: z2},
-            {x: a + .5, y:b - th, z: z3}
-                ]
+            {x: a + 1, y: b, z: z2},
+            {x: a + .5, y: b - th, z: z3}
+        ]
     } else {
         return [
             {x: a, y: b - th, z: z1},
             {x: a + 1, y: b - th, z: z2},
             {x: a + .5, y: b, z: z3}
-                ]
+        ]
     }
 }
 
@@ -282,34 +311,52 @@ function camdist(p) {
 }
 
 function tcolor({x, y}) {
+    // Check if coordinates are within bounds
+    if (x < 0 || y < 0 || x >= mh || y >= mw) {
+        return 'gray'; // Default color for out of bounds
+    }
+    
     const type = map.type[x][y];
     switch(type) {
     case " ": return 'pink';
     case "x": return 'blue';
     case "r": return 'yellow';
+    case "a": return 'rgb(50,50,50)';
+    case "b": return 'rgb(70,70,70)';
+    case "c": return 'rgb(90,90,90)';
+    case "d": return 'rgb(110,110,110)';
+    case "e": return 'rgb(130,130,130)';
+    case "f": return 'rgb(150,150,150)';
+    default: return 'gray'; // Default color if type is undefined
     }
-    console.error('bad type', type)
 }
 
 function theights({x, y}) {
+    const safeGetHeight = (x, y) => {
+        //console.log("corner", x, y);
+        return map.heights[y][x] / 5;
+    };
+
     const dir = (x + y) % 2;
+    const xx = Math.floor(x/2)
+    //    console.log("in", x, y, {xx, dir})
     if (dir === 0) {
         return [
-            map.heights[x+1][y] / 5,
-            map.heights[x+1][y+1] / 5,
-            map.heights[x][y] / 5
+            safeGetHeight(xx, y+1),
+            safeGetHeight(xx+1, y+1),
+            safeGetHeight(xx, y)
         ]
     } else {
         return [
-            map.heights[x][y] / 5,
-            map.heights[x][y+1] / 5,
-            map.heights[x+1][y+1] / 5
+            safeGetHeight(xx, y),
+            safeGetHeight(xx+1, y),
+            safeGetHeight(xx+1, y+1)
         ]
     }
 }
 
 function tocam(m, {x, y, z}) {
-    const {X, Y, Z} = (new Point3d(x, y, z).Transform(m))
+    const {X, Y, Z} = (new Point3d(x, y, z).Transform(m));
     const r = Math.sqrt(Y * Y + Z * Z);
     if(X < 0) {
         return undefined;
@@ -323,7 +370,7 @@ function tocam(m, {x, y, z}) {
 }
 
 function draw() {
-    cx.fillStyle = 'rgb(30,30,30)';
+    cx.fillStyle = 'rgb(100,100,255)';
     cx.fillRect(0, 0, width, height);
     const m = Transform.CombineTransforms([
         Transform.Translation(new Vector3d(-cam.pos.x, -cam.pos.y, -cam.pos.z)),
@@ -331,30 +378,39 @@ function draw() {
         Transform.Rotation(-cam.lower, new Vector3d(0, 1, 0), new Point3d(0,0,0))
     ]);
     const pss = [];
-    for(let x = 0; x < mw; x++) {
-        for(let y = 0; y < mh; y++) {
+    // Generate triangles for the entire map
+    // Fixed to use the correct dimensions
+    for(let x = 0; x < mh; x++) {
+        for(let y = 0; y < mw; y++) {
             const t = {x, y};
             const ps = tpoints(t);
             const c = tcolor(t);
             const d = camdist(center(ps));
 
-            pss.push({t, ps, c, d})
+            pss.push({t, ps, c, d});
         }
     }
-    pss.sort((a, b) => a.d > b.d)
+    // Sort by distance for proper rendering order (back-to-front)
+    pss.sort((a, b) => b.d - a.d);
+    
+    // Render the triangles
     for (let item of pss) {
-        const { t, ps, c } = item
-        const cs = ps.map((p) => tocam(m, p))
+        const { ps, c } = item;
+        const cs = ps.map((p) => tocam(m, p));
+        
+        // Skip if any point is not visible
         if (!cs[0] || !cs[1] || !cs[2]) {
             continue;
         }
+        
+        // Draw the triangle
         cx.fillStyle = c;
-        cx.strokeStyle = c;
+        cx.strokeStyle = 'rgba(0,0,0,0.2)'; // Subtle border for definition
         cx.beginPath();
         cx.moveTo(cs[0].x, cs[0].y);
         cx.lineTo(cs[1].x, cs[1].y);
         cx.lineTo(cs[2].x, cs[2].y);
-        cx.lineTo(cs[0].x, cs[0].y);
+        cx.closePath();
         cx.fill();
         cx.stroke();
     }
