@@ -16,18 +16,19 @@ const cam = {
 };
 
 const maps = [{ heights: [
-    [1,1,1,1,0,1,5,5,5,5,4,5,6,7,8,9],
-    [6,5,2,2,1,2,5,5,5,5,5,5,5,6,7,8],
-    [5,5,5,2,5,5,5,5,5,5,5,5,5,5,6,7],
-    [5,5,5,1,5,5,5,5,5,5,5,5,5,5,5,6],
-    [5,5,5,5,5,5,5,5,5,5,5,4,5,5,5,5],
-    [5,5,6,5,5,5,5,5,5,5,5,4,5,5,5,5],
-    [5,5,5,5,5,5,5,5,5,5,5,4,5,5,5,5],
-    [5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5],
-    [5,5,5,5,6,6,6,6,5,5,5,5,5,5,5,5],
-    [5,5,5,5,5,7,7,5,5,5,5,5,5,5,5,5],
-    [5,5,5,5,5,5,5,5,5,5,5,5,4,4,5,5],
-    [5,5,5,5,5,5,5,5,5,5,5,5,4,4,5,5],
+    [0,1,1,1,1,0,1,5,5,5,5,4,5,6,7,8,9],
+    [5,6,5,2,2,1,2,5,5,5,5,5,5,5,6,7,8],
+    [5,5,5,5,2,5,5,5,5,5,5,5,5,5,5,6,7],
+    [5,5,5,5,1,5,5,5,5,5,5,5,5,5,5,5,6],
+    [5,5,5,5,5,5,5,5,5,5,5,5,4,5,5,5,5],
+    [5,5,5,6,5,5,5,5,5,5,5,5,4,5,5,5,5],
+    [5,5,5,5,5,5,5,5,5,5,5,5,4,5,5,5,5],
+    [5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5],
+    [5,5,5,5,5,6,6,6,6,5,5,5,5,5,5,5,5],
+    [5,5,5,5,5,5,7,7,5,5,5,5,5,5,5,5,5],
+    [5,5,5,5,5,5,5,5,5,5,5,5,5,4,4,5,5],
+    [5,5,5,5,5,5,5,5,5,5,5,5,5,4,4,5,5],
+    [5,5,5,5,5,5,5,5,5,5,5,5,5,4,4,5,5],
 ],
     type: [
         "                ",
@@ -46,8 +47,8 @@ const maps = [{ heights: [
 }
 ];
 let map = maps[0];
-let mw = map.heights.length;
-let mh = map.heights[0].length;
+let mw = map.type.length;
+let mh = map.type[0].length;
 
  async function loadSound(url) {
   if (!audioContext) {
@@ -248,20 +249,36 @@ function tpoints({x, y}) {
     const dir = (x + y) % 2;
     const a = x / 2;
     const b = (y + 1) * th;
-    const z = theight({x, y}); // ...
+    const [z1, z2, z3] = theights({x, y});
     if (dir === 0) {
         return [
-            {x: a, y: b, z},
-            {x: a + 1, y:b, z},
-            {x: a + .5, y:b - th, z}
+            {x: a, y: b, z: z1},
+            {x: a + 1, y:b, z: z2},
+            {x: a + .5, y:b - th, z: z3}
                 ]
     } else {
         return [
-            {x: a, y: b - th, z},
-            {x: a + 1, y: b - th, z},
-            {x: a + .5, y: b, z}
+            {x: a, y: b - th, z: z1},
+            {x: a + 1, y: b - th, z: z2},
+            {x: a + .5, y: b, z: z3}
                 ]
     }
+}
+
+function center([a, b, c]) {
+    return {
+        x: (a.x + b.x + c.x) / 3,
+        y: (a.y + b.y + c.y) / 3,
+        z: (a.z + b.z + c.z) / 3,
+    }
+}
+
+function camdist(p) {
+    const c = cam.pos;
+    const x = c.x - p.x;
+    const y = c.y - p.y;
+    const z = c.z - p.z;
+    return Math.sqrt(x * x + y * y + z * z);
 }
 
 function tcolor({x, y}) {
@@ -274,8 +291,21 @@ function tcolor({x, y}) {
     console.error('bad type', type)
 }
 
-function theight({x, y}) {
-    return map.heights[x][y] / 5;
+function theights({x, y}) {
+    const dir = (x + y) % 2;
+    if (dir === 0) {
+        return [
+            map.heights[x+1][y] / 5,
+            map.heights[x+1][y+1] / 5,
+            map.heights[x][y] / 5
+        ]
+    } else {
+        return [
+            map.heights[x][y] / 5,
+            map.heights[x][y+1] / 5,
+            map.heights[x+1][y+1] / 5
+        ]
+    }
 }
 
 function tocam(m, {x, y, z}) {
@@ -306,10 +336,12 @@ function draw() {
             const t = {x, y};
             const ps = tpoints(t);
             const c = tcolor(t);
+            const d = camdist(center(ps));
 
-            pss.push({t, ps, c})
+            pss.push({t, ps, c, d})
         }
     }
+    pss.sort((a, b) => a.d > b.d)
     for (let item of pss) {
         const { t, ps, c } = item
         const cs = ps.map((p) => tocam(m, p))
