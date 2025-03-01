@@ -2,6 +2,10 @@
   "name": "retro-handheld-game-jam-2025",
   "type": "module",
   "devDependencies": {
-    "rungame": "^0.8.0"
+    "rungame": "^0.8.0",
+    "vite": "^6.2.0"
+  },
+  "dependencies": {
+    "open3d": "^0.2.4"
   }
 }

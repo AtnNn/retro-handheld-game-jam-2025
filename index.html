@@ -32,7 +32,7 @@
 </head>
 <body>
   <!-- Internal aspect ratio 4:3 -->
-  <canvas id="game-canvas" width="640" height="480" style="display: none;"></canvas>
+  <canvas id="game-canvas" width="640" height="480"></canvas>
   <script>
     const canvas = document.querySelectorAll('canvas')[0];
     const ctx = canvas.getContext("2d");
@@ -60,6 +60,6 @@
     window.addEventListener("resize", resizeCanvas);
     resizeCanvas(); // Initial resize
   </script>
-  <script src="./src/main.js" type="module"></script>
+  <script src="./game.js" type="module"></script>
 </body>
 </html>

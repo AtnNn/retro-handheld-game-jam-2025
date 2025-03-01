@@ -1,8 +1,53 @@
-
+import { Line, Vector3d, Point3d, Transform, Plane } from 'open3d';
 
 const window = globalThis;
 
+const canvas = document.getElementById('game-canvas');
+const ctx = canvas.getContext('2d');
+
+const { width, height } = canvas;
+let lastTime;
+
 let audioContext;
+
+const cam = {
+    pos: { x: 4, y: 4, z: 7 },
+    angle: -Math.PI/5
+};
+
+const maps = [{ heights: [
+    [5,5,5,5,5,5,5,5,5,5,4,5,6,7,8,9],
+    [6,5,6,5,5,5,5,5,5,5,5,5,5,6,7,8],
+    [5,5,5,6,5,5,5,5,5,5,5,5,5,5,6,7],
+    [5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,6],
+    [5,5,5,5,5,5,5,5,5,5,5,4,5,5,5,5],
+    [5,5,6,5,5,5,5,5,5,5,5,4,5,5,5,5],
+    [5,5,5,5,5,5,5,5,5,5,5,4,5,5,5,5],
+    [5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5],
+    [5,5,5,5,6,6,6,6,5,5,5,5,5,5,5,5],
+    [5,5,5,5,5,7,7,5,5,5,5,5,5,5,5,5],
+    [5,5,5,5,5,5,5,5,5,5,5,5,4,4,5,5],
+    [5,5,5,5,5,5,5,5,5,5,5,5,4,4,5,5],
+],
+    type: [
+        "                ",
+        " xxxxxxxxxxxxxx ",
+        " xrrrrrr      x ",
+        " x      r     x ",
+        " x   x  r x   x ",
+        " x      r     x ",
+        " x      r     x ",
+        " x      r    rx ",
+        " x   x  r x r x ",
+        " x       rrrr x ",
+        " xxxxxxxxxxxxx  ",
+        "                "
+        ]
+}
+];
+let map = maps[0];
+let mw = map.heights.length;
+let mh = map.heights[0].length;
 
  async function loadSound(url) {
   if (!audioContext) {
@@ -192,12 +237,67 @@ function update(millis) {
   const [p1] = getInput();
 }
 
-function draw() {
-  ctx.fillStyle = 'blue';
-  ctx.fillRect(0, 0, width, height);
+const th = Math.sqrt(3)/2;
 
-  ctx.fillStyle = 'red';
-  ctx.fillRect(10, 10, width-10, height-10);
+function tpoints({x, y}) {
+    const dir = (x + y) % 2;
+    const a = x / 2;
+    const b = (y + 1) * th;
+    if (dir === 0) {
+        return [
+          {x: a, y: b},
+            {x: a + 1, y:b},
+            {x: a + .5, y:b - th}
+                ]
+    } else {
+        return [
+          {x: a, y: b - th},
+            {x: a + 1, y: b - th},
+            {x: a + .5, y: b}
+                ]
+    }
+}
+
+function tcolor({x, y}) {
+    const type = map.type[x][y];
+    switch(type) {
+    case " ": return 'white';
+    case "x": return 'black';
+    case "r": return 'rgb(200,200,220)';
+    }
+    console.log('error bad type', type)
+}
+
+function theight({x, y}) {
+    return map.heights[x][y];
+}
+
+
+function draw() {
+    ctx.fillStyle = 'rgb(30,30,30)';
+    ctx.fillRect(0, 0, width, height);
+    for(let x = 0; x < mw; x++) {
+        for(let y = 0; y < mh; y++) {
+            const t = {x, y};
+            const ps = tpoints(t);
+            const c = tcolor(t);
+            const s = width / mw;
+
+            // ctx.fillStyle = c;
+            // ctx.strokeStyle = c;
+            // ctx.beginPath();
+            // ctx.moveTo(ps[0].x * s, ps[0].y * s);
+            // ctx.lineTo(ps[1].x * s, ps[1].y * s);
+            // ctx.lineTo(ps[2].x * s, ps[2].y * s);
+            // ctx.lineTo(ps[0].x * s, ps[0].y * s);
+            // ctx.fill();
+            // ctx.stroke();
+
+            const m = Transform.CombineTransforms([
+                Transform.Translation(-cam.pos.x, -cam.pos.y, -cam.pos.z)
+            ])
+        }
+    }
 }
 
 gameLoop();
